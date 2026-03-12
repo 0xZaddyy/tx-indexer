@@ -8,6 +8,7 @@ members = [
     "src/crates/primitives",
     "src/crates/pipeline",
     "src/crates/disjoint-set",
+    "src/crates/fingerprints",
 ]
 
 [workspace.dependencies]
