@@ -95,6 +95,25 @@ where
     sorting_types
 }
 
+/// Returns true if any input opts in to nLockTime enforcement (nSequence < 0xFFFFFFFE)
+/// but the transaction sets nLockTime = 0.
+///
+/// This is a wallet fingerprint: the wallet enables nLockTime enforcement via nSequence
+/// but doesn't actually use it (e.g. RBF signaling without anti-fee-sniping).
+/// No well-implemented wallet does this intentionally.
+pub fn nlocktime_optin_without_use(inputs: &[impl HasSequence], locktime: u32) -> bool {
+    locktime == 0 && inputs.iter().any(|input| input.sequence() < 0xfffffffe)
+}
+
+/// Returns true if any input enables BIP 68 relative timelocks (nSequence < 0x80000000)
+/// while the transaction also sets a non-zero absolute nLockTime.
+///
+/// Consensus-valid but semantically contradictory: wallets doing anti-fee-sniping don't enter BIP 68 range.
+/// Strongly fingerprints a specific protocol or wallet composing these fields incorrectly.
+pub fn bip68_with_absolute_locktime(inputs: &[impl HasSequence], locktime: u32) -> bool {
+    locktime > 0 && inputs.iter().any(|input| input.sequence() < 0x80000000)
+}
+
 /// Returns the output structure types detected in the transaction.
 pub fn output_structure<O>(outputs: &[O]) -> Vec<OutputStructureType>
 where
