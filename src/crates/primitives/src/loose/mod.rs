@@ -282,6 +282,19 @@ impl TxIoIndex for InMemoryIndex {
         let tx = self.tx(txid).expect("loose txid not found in storage");
         tx.locktime()
     }
+
+    fn input_sequence(&self, _in_id: &AnyInId) -> u32 {
+        // TODO: loose transactions don't carry sequence data in the abstract model yet.
+        panic!("input_sequence not supported for loose transactions");
+    }
+
+    fn witness_items(&self, _in_id: &AnyInId) -> Vec<Vec<u8>> {
+        todo!()
+    }
+
+    fn script_sig_bytes(&self, _in_id: &AnyInId) -> Vec<u8> {
+        todo!()
+    }
 }
 
 impl OutpointIndex for InMemoryIndex {

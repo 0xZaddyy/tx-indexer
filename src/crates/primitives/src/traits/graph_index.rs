@@ -29,7 +29,12 @@ pub trait TxIndex {
 pub trait TxIoIndex {
     fn tx_in_ids(&self, txid: &AnyTxId) -> Vec<AnyInId>;
     fn tx_out_ids(&self, txid: &AnyTxId) -> Vec<AnyOutId>;
+    // TODO: these 4 methods dont need to exist right now. We end up deserializing the entire transaction just to get these values so we can just call tx() above.
+    // There may be a senario where we can only deserialize the input or output we need. in which case these would be useful.
     fn locktime(&self, txid: &AnyTxId) -> u32;
+    fn input_sequence(&self, in_id: &AnyInId) -> u32;
+    fn witness_items(&self, in_id: &AnyInId) -> Vec<Vec<u8>>;
+    fn script_sig_bytes(&self, in_id: &AnyInId) -> Vec<u8>;
 }
 
 pub trait OutpointIndex {

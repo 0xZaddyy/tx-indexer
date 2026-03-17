@@ -68,6 +68,7 @@ pub trait HasSequence {
 /// Witness and scriptSig data for a transaction input
 pub trait HasWitnessData {
     fn witness_items(&self) -> Vec<Vec<u8>>;
+    // TODO should be in HasScriptSig trait
     fn script_sig_bytes(&self) -> Vec<u8>;
 }
 

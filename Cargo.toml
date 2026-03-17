@@ -1,7 +1,9 @@
-[workspace]
+[package]
 name = "bitcoin-transaction-indexer"
 version = "0.1.0"
 edition = "2024"
+
+[workspace]
 resolver = "3"
 members = [
     "src/crates/heuristics",
@@ -13,3 +15,9 @@ members = [
 
 [workspace.dependencies]
 bitcoin = { version = "0.32.0", features = ["rand"] }
+
+[dependencies]
+tx-indexer-primitives = { path = "src/crates/primitives" }
+tx-indexer-heuristics = { path = "src/crates/heuristics" }
+tx-indexer-pipeline = { path = "src/crates/pipeline" }
+bitcoin = { workspace = true }

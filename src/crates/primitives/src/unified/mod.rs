@@ -503,6 +503,70 @@ impl TxIoIndex for UnifiedStorage {
             .expect("dense storage missing for confirmed txid");
         dense.get_tx(dense_txid).lock_time.to_consensus_u32()
     }
+
+    fn input_sequence(&self, in_id: &AnyInId) -> u32 {
+        if in_id.is_loose() {
+            // TODO: loose transactions don't carry sequence data in the abstract model yet.
+            panic!("input_sequence not supported for loose transactions");
+        }
+
+        let dense_inid = in_id
+            .confirmed_id()
+            .expect("confirmed inid must map to dense inid");
+        let dense = self
+            .dense
+            .as_ref()
+            .expect("dense storage missing for confirmed inid");
+        let txid = dense.txid_for_in(dense_inid);
+        let (start, _end) = dense.tx_in_range(txid);
+        let vin = (dense_inid.index() - start) as usize;
+        let tx = dense.get_tx(txid);
+        tx.input[vin].sequence.0
+    }
+
+    fn witness_items(&self, in_id: &AnyInId) -> Vec<Vec<u8>> {
+        if in_id.is_loose() {
+            // TODO: loose transactions don't carry witness data in the abstract model yet.
+            panic!("witness_items not supported for loose transactions");
+        }
+
+        let dense_inid = in_id
+            .confirmed_id()
+            .expect("confirmed inid must map to dense inid");
+        let dense = self
+            .dense
+            .as_ref()
+            .expect("dense storage missing for confirmed inid");
+        let txid = dense.txid_for_in(dense_inid);
+        let (start, _end) = dense.tx_in_range(txid);
+        let vin = (dense_inid.index() - start) as usize;
+        let tx = dense.get_tx(txid);
+        tx.input[vin]
+            .witness
+            .iter()
+            .map(|item| item.to_vec())
+            .collect()
+    }
+
+    fn script_sig_bytes(&self, in_id: &AnyInId) -> Vec<u8> {
+        if in_id.is_loose() {
+            // TODO: loose transactions don't carry script sig data in the abstract model yet.
+            panic!("script_sig_bytes not supported for loose transactions");
+        }
+
+        let dense_inid = in_id
+            .confirmed_id()
+            .expect("confirmed inid must map to dense inid");
+        let dense = self
+            .dense
+            .as_ref()
+            .expect("dense storage missing for confirmed inid");
+        let txid = dense.txid_for_in(dense_inid);
+        let (start, _end) = dense.tx_in_range(txid);
+        let vin = (dense_inid.index() - start) as usize;
+        let tx = dense.get_tx(txid);
+        tx.input[vin].script_sig.to_bytes()
+    }
 }
 
 impl OutpointIndex for UnifiedStorage {
