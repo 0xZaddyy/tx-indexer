@@ -1,7 +1,4 @@
-use tx_indexer_primitives::{
-    traits::abstract_fingerprints::HasNLockTime,
-    traits::abstract_types::{OutputCount, TxConstituent},
-};
+use tx_indexer_primitives::traits::abstract_types::{HasNLockTime, OutputCount, TxConstituent};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum TxOutChangeAnnotation {

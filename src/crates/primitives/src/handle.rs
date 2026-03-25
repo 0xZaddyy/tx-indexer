@@ -1,10 +1,9 @@
 use crate::{
     AnyInId, AnyOutId, AnyTxId, HasWitnessData,
     traits::{
-        abstract_fingerprints::HasNLockTime,
         abstract_types::{
             AbstractTransaction, AbstractTxIn, AbstractTxOut, EnumerateInputValueInArbitraryOrder,
-            EnumerateOutputValueInArbitraryOrder, EnumerateSpentTxOuts, HasScriptPubkey,
+            EnumerateOutputValueInArbitraryOrder, EnumerateSpentTxOuts, HasNLockTime, HasScriptPubkey,
             HasSequence, InputCount, OutputCount, TxConstituent,
         },
         graph_index::IndexedGraph,

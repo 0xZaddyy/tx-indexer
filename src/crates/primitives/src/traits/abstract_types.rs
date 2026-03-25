@@ -68,6 +68,10 @@ pub trait AbstractTransaction {
     fn locktime(&self) -> u32;
 }
 
+pub trait HasNLockTime: AbstractTransaction {
+    fn n_locktime(&self) -> u32;
+}
+
 /// Sequence number of a transaction input (needed for RBF detection)
 pub trait HasSequence {
     fn sequence(&self) -> u32;
