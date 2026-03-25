@@ -383,10 +383,10 @@ impl UnifiedStorage {
     }
 
     pub fn script_pubkey_to_txout_id(&self, script_pubkey: &ScriptPubkeyHash) -> Option<AnyOutId> {
-        if let Some(loose) = self.loose.as_ref() {
-            if let Some(out_id) = loose.spk_to_txout_ids.get(script_pubkey).copied() {
-                return Some(AnyOutId::from(out_id));
-            }
+        if let Some(loose) = self.loose.as_ref()
+            && let Some(out_id) = loose.spk_to_txout_ids.get(script_pubkey).copied()
+        {
+            return Some(AnyOutId::from(out_id));
         }
 
         if let Some(dense) = self.dense.as_ref() {
