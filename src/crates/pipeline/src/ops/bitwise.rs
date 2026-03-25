@@ -110,16 +110,6 @@ impl<K: Eq + Hash + Clone + Send + Sync + 'static> BitAnd for Expr<Mask<K>> {
     }
 }
 
-// Also implement for references to avoid moves
-impl<K: Eq + Hash + Clone + Send + Sync + 'static> BitAnd for &Expr<Mask<K>> {
-    type Output = Expr<Mask<K>>;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        self.ctx
-            .register(AndMasksNode::new(self.clone(), rhs.clone()))
-    }
-}
-
 // Extension methods for explicit and/or
 impl<K: Eq + Hash + Clone + Send + Sync + 'static> Expr<Mask<K>> {
     /// Bitwise AND with another mask.
