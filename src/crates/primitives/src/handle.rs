@@ -1,11 +1,10 @@
 use crate::{
     AnyInId, AnyOutId, AnyTxId, HasWitnessData,
     traits::{
-        abstract_fingerprints::HasNLockTime,
         abstract_types::{
             AbstractTransaction, AbstractTxIn, AbstractTxOut, EnumerateInputValueInArbitraryOrder,
-            EnumerateOutputValueInArbitraryOrder, EnumerateSpentTxOuts, HasScriptPubkey,
-            HasSequence, InputCount, OutputCount, TxConstituent,
+            EnumerateOutputValueInArbitraryOrder, EnumerateSpentTxOuts, HasNLockTime,
+            HasScriptPubkey, HasSequence, InputCount, OutputCount, TxConstituent,
         },
         graph_index::IndexedGraph,
     },
@@ -215,6 +214,15 @@ impl<'a> AbstractTransaction for TxHandle<'a> {
 
     fn locktime(&self) -> u32 {
         self.index.locktime(&self.tx_id)
+    }
+
+    fn is_coinbase(&self) -> bool {
+        let mut inputs = self.inputs();
+        if let Some(first_input) = inputs.next() {
+            return first_input.prev_txout_id().is_none();
+        }
+
+        false
     }
 }
 

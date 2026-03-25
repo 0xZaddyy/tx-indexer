@@ -1,10 +1,9 @@
-pub mod abstract_fingerprints;
 pub mod abstract_types;
 pub mod graph_index;
 
-pub use abstract_fingerprints::HasNLockTime;
 pub use abstract_types::{
-    HasPrevOutput, HasScriptPubkey, HasSequence, HasValue, HasVersion, HasWitnessData, InputCount,
+    HasNLockTime, HasPrevOutput, HasScriptPubkey, HasSequence, HasValue, HasVersion,
+    HasWitnessData, InputCount,
 };
 
 use crate::ScriptPubkeyHash;

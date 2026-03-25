@@ -66,6 +66,12 @@ pub trait AbstractTransaction {
     fn output_at(&self, index: usize) -> Option<Box<dyn AbstractTxOut + '_>>;
 
     fn locktime(&self) -> u32;
+
+    fn is_coinbase(&self) -> bool;
+}
+
+pub trait HasNLockTime: AbstractTransaction {
+    fn n_locktime(&self) -> u32;
 }
 
 /// Sequence number of a transaction input (needed for RBF detection)
