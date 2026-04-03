@@ -45,8 +45,9 @@ fn main() {
     }
 
     println!(
-        "Indexing {} blocks from tip (datadir: {})",
+        "Indexing last {} blocks (depth: {}) from {}",
         depth + 1,
+        depth,
         datadir.display()
     );
 
