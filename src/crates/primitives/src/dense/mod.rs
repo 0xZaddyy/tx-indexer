@@ -93,8 +93,37 @@ impl DenseStorageBuilder {
         }
     }
 
-    pub fn sync_from_genesis(self) -> Result<DenseStorage, BlockFileError> {
-        todo!()
+    /// Build a [`DenseStorage`] for every block from genesis up to the chain tip.
+    ///
+    /// `data_dir` is Bitcoin Core's data directory (e.g. `~/.bitcoin/` or
+    /// `~/.bitcoin/regtest/`); `blocks/` and `blocks/index/` are derived from it automatically.
+    ///
+    /// `index_dir` is the output directory where all dense index files and the sled database
+    /// will be written. The caller is responsible for creating this directory before calling.
+    pub fn sync_from_genesis(
+        data_dir: PathBuf,
+        index_dir: PathBuf,
+    ) -> Result<Self, BlockFileError> {
+        use bitcoin_block_index::BlockIndex;
+        let block_index_path = data_dir.join("blocks/index");
+
+        let mut index = BlockIndex::open(&block_index_path).map_err(BlockFileError::BlockIndex)?;
+
+        let tip_hash = index.best_block().map_err(BlockFileError::BlockIndex)?;
+        let tip_loc = index
+            .block_location(&tip_hash)
+            .map_err(BlockFileError::BlockIndex)?;
+        let end_height = tip_loc.height as u64;
+
+        let file_hints = Self::collect_file_hints(&mut index, 0, end_height)?;
+
+        let builder = DenseStorageBuilder {
+            data_dir,
+            index_dir,
+            range: 0..end_height + 1,
+            file_hints,
+        };
+        Ok(builder)
     }
 
     /// Build a [`DenseStorage`] for the `depth + 1` blocks ending at the chain tip.
@@ -129,7 +158,25 @@ impl DenseStorageBuilder {
             .expect("walk_back returns depth+1 items")
             .height as u64;
 
-        // Collect file layout hints from BlockIndex so the parser can locate the right blk files.
+        let file_hints = Self::collect_file_hints(&mut index, start_height, end_height)?;
+
+        let builder = DenseStorageBuilder {
+            data_dir,
+            index_dir,
+            range: start_height..end_height + 1,
+            file_hints,
+        };
+        Ok(builder)
+    }
+
+    /// Collect `(file_no, height_first, height_last)` hints for every blk file that
+    /// overlaps the inclusive height range `[start_height, end_height]`, so the parser
+    /// can skip blk files outside the requested range.
+    fn collect_file_hints(
+        index: &mut bitcoin_block_index::BlockIndex,
+        start_height: u64,
+        end_height: u64,
+    ) -> Result<Vec<(u32, u32, u32)>, BlockFileError> {
         let last_file = index
             .last_block_file()
             .map_err(BlockFileError::BlockIndex)?;
@@ -150,15 +197,7 @@ impl DenseStorageBuilder {
             file_hints.push((file_no, info.height_first, info.height_last));
         }
 
-        let range = start_height..end_height + 1;
-
-        let builder = DenseStorageBuilder {
-            data_dir,
-            index_dir,
-            range,
-            file_hints,
-        };
-        Ok(builder)
+        Ok(file_hints)
     }
 
     pub fn build(self) -> Result<DenseStorage, SyncError> {
