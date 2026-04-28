@@ -9,11 +9,12 @@ use tx_indexer_pipeline::{
 };
 use tx_indexer_primitives::{
     AbstractTxIn,
+    handle::SpendableTxConstituent,
     unified::{AnyOutId, AnyTxId},
 };
 
 use crate::change_identification::{
-    NLockTimeChangeIdentification, NaiveChangeIdentificationHueristic, TxOutChangeAnnotation,
+    NLockTimeChangeIdentification, NaiveChangeIdentificationHeuristic, TxOutChangeAnnotation,
 };
 
 /// Node that identifies change outputs in transactions.
@@ -44,10 +45,13 @@ impl Node for ChangeIdentificationNode {
 
         for output_id in txouts.iter() {
             let output = output_id.with(ctx.unified_storage());
-            let is_change = matches!(
-                NaiveChangeIdentificationHueristic::is_change(output),
-                TxOutChangeAnnotation::Change
-            );
+            let is_change = match SpendableTxConstituent::try_new(output) {
+                Ok(spendable) => matches!(
+                    NaiveChangeIdentificationHeuristic::is_change(spendable),
+                    TxOutChangeAnnotation::Change
+                ),
+                Err(_) => false, // OP_RETURN outputs cannot be change
+            };
             result.insert(*output_id, is_change);
         }
 
@@ -114,10 +118,13 @@ impl Node for FingerPrintChangeIdentificationNode {
             let is_change = match output.spender_txin() {
                 Some(spending_txin) => {
                     let spending_tx = spending_txin.containing_tx();
-                    matches!(
-                        NLockTimeChangeIdentification::is_change(output, spending_tx),
-                        TxOutChangeAnnotation::Change
-                    )
+                    match SpendableTxConstituent::try_new(output) {
+                        Ok(spendable) => matches!(
+                            NLockTimeChangeIdentification::is_change(spendable, spending_tx),
+                            TxOutChangeAnnotation::Change
+                        ),
+                        Err(_) => false, // OP_RETURN outputs cannot be change
+                    }
                 }
                 None => false, // Unspent output: not change by fingerprint
             };

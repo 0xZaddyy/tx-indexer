@@ -1,17 +1,24 @@
 use bitcoin::Amount;
 use tx_indexer_primitives::traits::abstract_types::{
-    EnumerateInputValueInArbitraryOrder, EnumerateOutputValueInArbitraryOrder,
+    AbstractTransaction, EnumerateInputValueInArbitraryOrder,
 };
 
 pub struct UnnecessaryInputHeuristic;
 
 impl UnnecessaryInputHeuristic {
+    /// Minimum output value among spendable outputs, when it is less than the
+    /// minimum input value. OP_RETURN outputs are excluded since they cannot be
+    /// spent and including them (often value=0) would always trip UIH1.
     pub fn uih1_min_output_value<T>(tx: &T) -> Option<Amount>
     where
-        T: EnumerateInputValueInArbitraryOrder + EnumerateOutputValueInArbitraryOrder,
+        T: EnumerateInputValueInArbitraryOrder + AbstractTransaction,
     {
         let input_values: Vec<Amount> = tx.input_values().collect();
-        let output_values: Vec<Amount> = tx.output_values().collect();
+        let output_values: Vec<Amount> = tx
+            .outputs()
+            .filter(|o| !o.is_op_return())
+            .map(|o| o.value())
+            .collect();
 
         if input_values.is_empty() || output_values.is_empty() {
             return None;
@@ -37,10 +44,14 @@ impl UnnecessaryInputHeuristic {
 
     pub fn is_uih2<T>(tx: &T) -> bool
     where
-        T: EnumerateInputValueInArbitraryOrder + EnumerateOutputValueInArbitraryOrder,
+        T: EnumerateInputValueInArbitraryOrder + AbstractTransaction,
     {
         let input_values: Vec<Amount> = tx.input_values().collect();
-        let output_values: Vec<Amount> = tx.output_values().collect();
+        let output_values: Vec<Amount> = tx
+            .outputs()
+            .filter(|o| !o.is_op_return())
+            .map(|o| o.value())
+            .collect();
 
         if input_values.len() < 2 || output_values.is_empty() {
             return false;

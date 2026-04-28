@@ -12,7 +12,10 @@ use tx_indexer_pipeline::{
     node::{Node, NodeId},
     value::{TxMask, TxOutSet, TxSet},
 };
-use tx_indexer_primitives::unified::{AnyOutId, AnyTxId};
+use tx_indexer_primitives::{
+    traits::abstract_types::HasScriptPubkey,
+    unified::{AnyOutId, AnyTxId},
+};
 
 use crate::uih::UnnecessaryInputHeuristic;
 
@@ -45,7 +48,11 @@ impl Node for UnnecessaryInputHeuristic1Node {
         for tx_id in &tx_ids {
             let tx = tx_id.with(ctx.unified_storage());
 
-            let outputs: Vec<_> = tx.outputs().map(|o| (o.id(), o.value())).collect();
+            let outputs: Vec<_> = tx
+                .outputs()
+                .filter(|o| !o.is_op_return())
+                .map(|o| (o.id(), o.value()))
+                .collect();
             if outputs.is_empty() {
                 continue;
             }
@@ -139,7 +146,7 @@ mod tests {
     use tx_indexer_primitives::{
         UnifiedStorage,
         loose::{LooseIndexBuilder, TxId, TxOutId},
-        test_utils::DummyTxData,
+        test_utils::{DummyTxData, DummyTxOutData},
         traits::abstract_types::AbstractTransaction,
         unified::{AnyOutId, AnyTxId},
     };
@@ -196,6 +203,22 @@ mod tests {
             Arc::new(DummyTxData::new_with_spent(
                 vec![50, 50],
                 vec![TxOutId::new(TxId(1), 0), TxOutId::new(TxId(2), 0)],
+            )),
+        ]
+    }
+
+    fn setup_uih1_op_return_value_zero_fixture() -> Vec<Arc<dyn AbstractTransaction + Send + Sync>>
+    {
+        vec![
+            Arc::new(DummyTxData::new_with_amounts(vec![100])),
+            Arc::new(DummyTxData::new_with_amounts(vec![200])),
+            Arc::new(DummyTxData::new(
+                vec![
+                    DummyTxOutData::new(150, 0),
+                    DummyTxOutData::new_with_script(0, 1, vec![0x6a, 0x04, 0xde, 0xad, 0xbe, 0xef]),
+                ],
+                vec![TxOutId::new(TxId(1), 0), TxOutId::new(TxId(2), 0)],
+                0,
             )),
         ]
     }
@@ -270,6 +293,22 @@ mod tests {
         assert!(
             result.is_empty(),
             "UIH1 should be empty when min(out) >= min(in)"
+        );
+    }
+
+    #[test]
+    fn test_uih1_ignores_op_return() {
+        let all_txs = setup_uih1_op_return_value_zero_fixture();
+        let ctx = Arc::new(PipelineContext::new());
+        let mut engine = engine_with_loose(ctx.clone(), all_txs);
+
+        let source = AllLooseTxs::new(&ctx);
+        let uih1 = UnnecessaryInputHeuristic1::new(source.txs());
+        let result = engine.eval(&uih1);
+
+        assert!(
+            result.is_empty(),
+            "UIH1 must not classify an OP_RETURN value=0 as a change candidate"
         );
     }
 

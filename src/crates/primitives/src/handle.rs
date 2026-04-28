@@ -311,3 +311,37 @@ impl<'a> TxConstituent for TxOutHandle<'a> {
         self.vout() as usize
     }
 }
+
+/// Wrapper guaranteeing the inner value is a spendable output (not OP_RETURN).
+///
+/// Construct via [`SpendableTxConstituent::try_new`]: `Ok` for spendable outputs,
+/// `Err` returns the original value back so callers can handle the unspendable
+/// case explicitly. Heuristics that consume `SpendableTxConstituent<T>` no
+/// longer need their own OP_RETURN check — the type system enforces it at the
+/// call boundary.
+pub struct SpendableTxConstituent<T>(T);
+
+impl<T: HasScriptPubkey> SpendableTxConstituent<T> {
+    /// Wraps `value` if it is spendable; returns it back as `Err` if OP_RETURN.
+    pub fn try_new(value: T) -> Result<Self, T> {
+        if value.is_op_return() {
+            Err(value)
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+impl<T> SpendableTxConstituent<T> {
+    pub fn into_inner(self) -> T {
+        self.0
+    }
+}
+
+impl<T> std::ops::Deref for SpendableTxConstituent<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
