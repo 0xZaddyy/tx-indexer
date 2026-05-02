@@ -96,6 +96,11 @@ pub trait HasScriptPubkey {
     fn is_op_return(&self) -> bool {
         self.output_type() == OutputType::OpReturn
     }
+
+    /// Returns true if this output can be spent
+    fn is_spendable(&self) -> bool {
+        !self.is_op_return()
+    }
 }
 
 /// Transaction version

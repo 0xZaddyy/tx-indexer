@@ -6,6 +6,7 @@
 
 use std::collections::HashSet;
 
+use bitcoin::Amount;
 use tx_indexer_pipeline::{
     engine::EvalContext,
     expr::Expr,
@@ -13,7 +14,7 @@ use tx_indexer_pipeline::{
     value::{TxMask, TxOutSet, TxSet},
 };
 use tx_indexer_primitives::{
-    traits::abstract_types::HasScriptPubkey,
+    traits::abstract_types::{EnumerateInputValueInArbitraryOrder, HasScriptPubkey},
     unified::{AnyOutId, AnyTxId},
 };
 
@@ -50,14 +51,18 @@ impl Node for UnnecessaryInputHeuristic1Node {
 
             let outputs: Vec<_> = tx
                 .outputs()
-                .filter(|o| !o.is_op_return())
+                .filter(|o| o.is_spendable())
                 .map(|o| (o.id(), o.value()))
                 .collect();
-            if outputs.is_empty() {
+            let Some(min_out) = outputs.iter().map(|(_, v)| *v).min() else {
                 continue;
-            }
+            };
+            let Some(min_in) = tx.input_values().min() else {
+                continue;
+            };
 
-            if let Some(min_out) = UnnecessaryInputHeuristic::uih1_min_output_value(&tx) {
+            if let Some(min_out) = UnnecessaryInputHeuristic::uih1_min_output_value(min_in, min_out)
+            {
                 for (out_id, v) in &outputs {
                     if *v == min_out {
                         result.insert(*out_id);
@@ -115,7 +120,24 @@ impl Node for UnnecessaryInputHeuristic2Node {
         for tx_id in &tx_ids {
             let tx = tx_id.with(ctx.unified_storage());
 
-            result.insert(*tx_id, UnnecessaryInputHeuristic::is_uih2(&tx));
+            let input_values: Vec<Amount> = tx.input_values().collect();
+            let output_values: Vec<Amount> = tx
+                .outputs()
+                .filter(|o| o.is_spendable())
+                .map(|o| o.value())
+                .collect();
+
+            let flagged = if input_values.len() < 2 || output_values.is_empty() {
+                false
+            } else {
+                let sum_in = input_values.iter().copied().sum();
+                let min_in = input_values.iter().copied().min().expect("len >= 2");
+                let sum_out = output_values.iter().copied().sum();
+                let min_out = output_values.iter().copied().min().expect("non-empty");
+                UnnecessaryInputHeuristic::is_uih2(sum_in, min_in, sum_out, min_out)
+            };
+
+            result.insert(*tx_id, flagged);
         }
 
         result

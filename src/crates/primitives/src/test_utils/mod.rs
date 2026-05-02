@@ -12,6 +12,10 @@ use crate::{
     },
 };
 
+/// Dummy unspendable script for testing - all bits set to 0xFF
+/// This is used instead of real OP_RETURN scripts in tests to mark outputs as unspendable
+pub const DUMMY_UNSPENDABLE_SCRIPT: &[u8] = &[0xFF, 0xFF, 0xFF, 0xFF];
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DummyTxData {
     outputs: Vec<DummyTxOutData>,
@@ -115,6 +119,11 @@ impl DummyTxOutData {
 impl HasScriptPubkey for DummyTxOutData {
     fn script_pubkey_bytes(&self) -> Vec<u8> {
         self.script_pubkey.clone()
+    }
+
+    fn is_spendable(&self) -> bool {
+        // Check for our dummy unspendable script or real OP_RETURN
+        self.script_pubkey != DUMMY_UNSPENDABLE_SCRIPT && !self.is_op_return()
     }
 }
 
@@ -232,6 +241,7 @@ impl From<DummyTxData> for Box<dyn AbstractTransaction + Send + Sync> {
     }
 }
 
+#[derive(Debug)]
 pub struct DummyTxOut {
     pub vout: usize,
     pub containing_tx: DummyTxData,
@@ -256,5 +266,19 @@ impl HasScriptPubkey for DummyTxOut {
             .nth(self.vout)
             .map(|output| output.script_pubkey_bytes())
             .unwrap_or_default()
+    }
+
+    fn is_spendable(&self) -> bool {
+        // Check for our dummy unspendable script or real OP_RETURN
+        let script = self.script_pubkey_bytes();
+        script != DUMMY_UNSPENDABLE_SCRIPT && !self.is_op_return()
+    }
+}
+
+impl TryFrom<DummyTxOut> for crate::handle::SpendableTxConstituent<DummyTxOut> {
+    type Error = DummyTxOut;
+
+    fn try_from(value: DummyTxOut) -> Result<Self, Self::Error> {
+        Self::try_new(value)
     }
 }

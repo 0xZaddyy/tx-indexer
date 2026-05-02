@@ -1,69 +1,20 @@
 use bitcoin::Amount;
-use tx_indexer_primitives::traits::abstract_types::{
-    AbstractTransaction, EnumerateInputValueInArbitraryOrder,
-};
 
 pub struct UnnecessaryInputHeuristic;
 
 impl UnnecessaryInputHeuristic {
-    /// Minimum output value among spendable outputs, when it is less than the
-    /// minimum input value. OP_RETURN outputs are excluded since they cannot be
-    /// spent and including them (often value=0) would always trip UIH1.
-    pub fn uih1_min_output_value<T>(tx: &T) -> Option<Amount>
-    where
-        T: EnumerateInputValueInArbitraryOrder + AbstractTransaction,
-    {
-        let input_values: Vec<Amount> = tx.input_values().collect();
-        let output_values: Vec<Amount> = tx
-            .outputs()
-            .filter(|o| !o.is_op_return())
-            .map(|o| o.value())
-            .collect();
-
-        if input_values.is_empty() || output_values.is_empty() {
-            return None;
-        }
-
-        let min_in = input_values
-            .iter()
-            .min()
-            .copied()
-            .expect("non-empty inputs");
-        let min_out = output_values
-            .iter()
-            .min()
-            .copied()
-            .expect("non-empty outputs");
-
-        if min_out < min_in {
-            Some(min_out)
-        } else {
-            None
-        }
+    /// UIH1 (Optimal change): the smallest output is likely change when it is
+    /// strictly less than the smallest input. Returns `Some(min_out)` in that
+    /// case. Caller is responsible for excluding unspendable outputs from
+    /// `min_out` — including them (often value=0) would always trip UIH1.
+    pub fn uih1_min_output_value(min_in: Amount, min_out: Amount) -> Option<Amount> {
+        (min_out < min_in).then_some(min_out)
     }
 
-    pub fn is_uih2<T>(tx: &T) -> bool
-    where
-        T: EnumerateInputValueInArbitraryOrder + AbstractTransaction,
-    {
-        let input_values: Vec<Amount> = tx.input_values().collect();
-        let output_values: Vec<Amount> = tx
-            .outputs()
-            .filter(|o| !o.is_op_return())
-            .map(|o| o.value())
-            .collect();
-
-        if input_values.len() < 2 || output_values.is_empty() {
-            return false;
-        }
-
-        let sum_in = input_values.iter().fold(Amount::from_sat(0), |a, b| a + *b);
-        let min_in = input_values.iter().min().copied().expect("len >= 2");
-        let sum_out = output_values
-            .iter()
-            .fold(Amount::from_sat(0), |a, b| a + *b);
-        let min_out = output_values.iter().min().copied().expect("non-empty");
-
+    /// UIH2 (Unnecessary input): the largest output could be paid without the
+    /// smallest input. Caller is responsible for excluding unspendable outputs
+    /// from the sum/min and ensuring there are at least two inputs.
+    pub fn is_uih2(sum_in: Amount, min_in: Amount, sum_out: Amount, min_out: Amount) -> bool {
         (sum_in - min_in) >= (sum_out - min_out)
     }
 }

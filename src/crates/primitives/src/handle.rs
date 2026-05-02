@@ -65,6 +65,14 @@ pub struct TxOutHandle<'a> {
     pub(crate) index: &'a dyn IndexedGraph,
 }
 
+impl<'a> std::fmt::Debug for TxOutHandle<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TxOutHandle")
+            .field("out_id", &self.out_id)
+            .finish()
+    }
+}
+
 impl<'a> TxOutHandle<'a> {
     pub fn id(&self) -> AnyOutId {
         self.out_id
@@ -316,19 +324,25 @@ impl<'a> TxConstituent for TxOutHandle<'a> {
 ///
 /// Construct via [`SpendableTxConstituent::try_new`]: `Ok` for spendable outputs,
 /// `Err` returns the original value back so callers can handle the unspendable
-/// case explicitly. Heuristics that consume `SpendableTxConstituent<T>` no
-/// longer need their own OP_RETURN check — the type system enforces it at the
-/// call boundary.
+/// case explicitly.
 pub struct SpendableTxConstituent<T>(T);
 
 impl<T: HasScriptPubkey> SpendableTxConstituent<T> {
-    /// Wraps `value` if it is spendable; returns it back as `Err` if OP_RETURN.
+    /// Wraps `value` if it is spendable; returns it back as `Err` if unspendable.
     pub fn try_new(value: T) -> Result<Self, T> {
-        if value.is_op_return() {
-            Err(value)
-        } else {
+        if value.is_spendable() {
             Ok(Self(value))
+        } else {
+            Err(value)
         }
+    }
+}
+
+impl<'a> TryFrom<TxOutHandle<'a>> for SpendableTxConstituent<TxOutHandle<'a>> {
+    type Error = TxOutHandle<'a>;
+
+    fn try_from(value: TxOutHandle<'a>) -> Result<Self, Self::Error> {
+        Self::try_new(value)
     }
 }
 
